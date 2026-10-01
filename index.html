@@ -13,10 +13,17 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Google Firebase SDK (Firestore sanntidsdatabase) -->
+
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
   <style>
+
+    /* Hindrer iPhone i å auto-zoome på skjemafelt */
+    input, select, textarea {
+      font-size: 16px !important;
+    }  
     .accordion-content {
       display: none;
     }
@@ -531,7 +538,7 @@
     </div>
   </div>
 
-  <!-- MODAL: LÆRER LOGIN -->
+<!-- MODAL: LÆRER LOGIN (Magic Link) -->
   <div id="adminModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl relative">
       <button type="button" onclick="window.closeAdminModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer">
@@ -542,16 +549,18 @@
         <i data-lucide="lock" class="w-6 h-6"></i>
       </div>
 
-      <h3 class="text-lg font-bold text-white">Lærer Login</h3>
-      <p class="text-xs text-slate-400 mt-1">Skriv inn passord for å administrere.</p>
+      <h3 class="text-lg font-bold text-white">Lærerinnlogging</h3>
+      <p class="text-xs text-slate-400 mt-1">Skriv inn din @trondelagfylke.no-adresse.</p>
 
       <div class="my-4 text-left">
-        <input type="password" id="adminPasswordInput" placeholder="Passord..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-400" onkeydown="if(event.key==='Enter') window.verifyAdminLogin()" />
-       
+        <input type="email" id="teacherEmailInput" placeholder="navn@trondelagfylke.no" 
+          class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-400" 
+          onkeydown="if(event.key==='Enter') window.sendTeacherLoginLink()" />
+        <p id="loginStatusMsg" class="text-[11px] text-slate-400 mt-2 hidden text-center"></p>
       </div>
 
-      <button type="button" onclick="window.verifyAdminLogin()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
-        Logg inn
+      <button type="button" id="btnSendLink" onclick="window.sendTeacherLoginLink()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer">
+        Send innloggingslenke
       </button>
     </div>
   </div>
@@ -1086,15 +1095,30 @@
         window.updateBookingSummary();
       }
     };
+// --- FIREBASE AUTH LÆRERINNLOGGING (MAGIC LINK) ---
+    const auth = firebase.auth();
 
     window.openAdminModal = function() {
       if (window.isAdmin) {
-        window.toggleAdminMode(false);
+        auth.signOut().then(() => {
+          window.toggleAdminMode(false);
+          window.showToast("Logget ut av lærermodus");
+        });
       } else {
-        const input = document.getElementById('adminPasswordInput');
+        const input = document.getElementById('teacherEmailInput');
+        const statusMsg = document.getElementById('loginStatusMsg');
+        const btn = document.getElementById('btnSendLink');
         if (input) input.value = '';
+        if (statusMsg) {
+          statusMsg.classList.add('hidden');
+          statusMsg.innerText = '';
+        }
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = 'Send innloggingslenke';
+        }
         document.getElementById('adminModal')?.classList.remove('hidden');
-        if (input) input.focus();
+        if (input) setTimeout(() => input.focus(), 100);
       }
     };
 
@@ -1102,17 +1126,88 @@
       document.getElementById('adminModal')?.classList.add('hidden');
     };
 
-    window.verifyAdminLogin = function() {
-      const pw = (document.getElementById('adminPasswordInput')?.value || '').trim();
-      if (pw === window.CONFIG.adminPassword) {
-        window.toggleAdminMode(true);
-        window.closeAdminModal();
-        window.showToast("Logget inn som lærer");
-      } else {
-        window.showToast("Feil passord!");
+    // 1. Send innloggingslenke til fylkes-epost
+    window.sendTeacherLoginLink = async function() {
+      const emailInput = document.getElementById('teacherEmailInput');
+      const email = (emailInput?.value || '').trim().toLowerCase();
+      const statusMsg = document.getElementById('loginStatusMsg');
+      const btn = document.getElementById('btnSendLink');
+
+      if (!email.endsWith('@trondelagfylke.no')) {
+        window.showToast("Kun gyldig for @trondelagfylke.no!");
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'Sender lenke...';
+      }
+      if (statusMsg) {
+        statusMsg.className = 'text-[11px] text-amber-400 mt-2 block text-center';
+        statusMsg.innerText = 'Sender sikker lenke til din innboks...';
+        statusMsg.classList.remove('hidden');
+      }
+
+      const actionCodeSettings = {
+        url: window.location.origin + window.location.pathname,
+        handleCodeInApp: true,
+      };
+
+      try {
+        await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+        window.localStorage.setItem('emailForSignIn', email);
+
+        if (statusMsg) {
+          statusMsg.className = 'text-[11px] text-emerald-400 mt-2 block text-center';
+          statusMsg.innerText = 'Lenke sendt! Sjekk e-posten din.';
+        }
+        if (btn) btn.innerText = 'Lenke sendt ✓';
+        window.showToast("Innloggingslenke sendt til e-post!");
+      } catch (error) {
+        console.error('Feil ved sending av lenke:', error);
+        if (statusMsg) {
+          statusMsg.className = 'text-[11px] text-rose-400 mt-2 block text-center';
+          statusMsg.innerText = 'Feil: ' + error.message;
+        }
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = 'Prøv igjen';
+        }
       }
     };
 
+    // 2. Fullfør innlogging hvis siden åpnes fra lenken i e-posten
+    async function checkEmailSignInLink() {
+      if (auth.isSignInWithEmailLink(window.location.href)) {
+        let email = window.localStorage.getItem('emailForSignIn');
+
+        if (!email) {
+          email = window.prompt('Bekreft e-postadressen din (@trondelagfylke.no) for å fullføre innloggingen:');
+        }
+
+        if (email && email.toLowerCase().endsWith('@trondelagfylke.no')) {
+          try {
+            await auth.signInWithEmailLink(email, window.location.href);
+            window.localStorage.removeItem('emailForSignIn');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            window.showToast("Velkommen! Logget inn som lærer.");
+          } catch (error) {
+            console.error('Feil under innlogging:', error);
+            window.showToast("Innlogging feilet: " + error.message);
+          }
+        } else {
+          window.showToast("Ugyldig e-postadresse.");
+        }
+      }
+    }
+
+    // 3. Lytt på innloggingsstatus og synkroniser UI automatisk
+    auth.onAuthStateChanged((user) => {
+      const isTeacher = !!(user && user.email && user.email.toLowerCase().endsWith('@trondelagfylke.no'));
+      window.toggleAdminMode(isTeacher);
+    });
+
+    // 4. Opprinnelig toggleAdminMode (bevart)
     window.toggleAdminMode = function(state) {
       window.isAdmin = state;
       const banner = document.getElementById('adminBanner');
@@ -1142,6 +1237,9 @@
       } catch(e) {}
     };
 
+    // Kjør sjekk automatisk ved lasting
+    checkEmailSignInLink();
+    
     window.populateAdminPriceInputs = function() {
       const p = window.CONFIG.prices;
       const input3d = document.getElementById('adminPrice3d');
