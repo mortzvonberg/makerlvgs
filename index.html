@@ -12,14 +12,12 @@
   <!-- Lucide Ikoner -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Google Firebase SDK (Firestore sanntidsdatabase) -->
-
+  <!-- Google Firebase SDK (Firestore sanntidsdatabase og Auth) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
   <style>
-
     /* Hindrer iPhone i å auto-zoome på skjemafelt */
     input, select, textarea {
       font-size: 16px !important;
@@ -49,7 +47,7 @@
         <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
         <span><b>Lærermodus aktiv:</b> Du kan nå slette bookinger og justere priser i Makerspace.</span>
       </div>
-      <button type="button" onclick="window.toggleAdminMode(false)" class="text-xs text-amber-300 underline hover:text-white cursor-pointer">
+      <button type="button" onclick="window.openAdminModal()" class="text-xs text-amber-300 underline hover:text-white cursor-pointer">
         Logg ut
       </button>
     </div>
@@ -81,7 +79,7 @@
   </header>
 
   <!-- ========================================== -->
-  <!-- 1. HOVEDMENY / LANDINGSSIDE               -->
+  <!-- 1. HOVEDMENY / LANDINGSSIDE                -->
   <!-- ========================================== -->
   <main id="view-home" class="flex-1 max-w-5xl mx-auto w-full px-4 py-8 md:py-16 flex flex-col justify-center items-center">
     <div class="text-center max-w-xl mb-8 md:mb-12">
@@ -124,7 +122,7 @@
   </main>
 
   <!-- ========================================== -->
-  <!-- 2. BOOKING-SEKSJON                        -->
+  <!-- 2. BOOKING-SEKSJON                         -->
   <!-- ========================================== -->
   <main id="view-booking" class="hidden flex-1 max-w-4xl mx-auto w-full px-4 py-8">
     <div class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-5">
@@ -538,7 +536,7 @@
     </div>
   </div>
 
-<!-- MODAL: LÆRER LOGIN (Magic Link) -->
+  <!-- MODAL: LÆRER LOGIN (Magic Link) -->
   <div id="adminModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl relative">
       <button type="button" onclick="window.closeAdminModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer">
@@ -573,7 +571,7 @@
   <!-- ========================================== -->
   <script>
     // ========================================================
-    // ⚙️ GOOGLE FIREBASE KONFIGURASJON (Dine ekte nøkler)
+    // ⚙️ GOOGLE FIREBASE KONFIGURASJON
     // ========================================================
     window.FIREBASE_CONFIG = {
       apiKey: "AIzaSyCXtcC4fUfI3QRV8CzgCC6LaFYlh5zBLRY",
@@ -588,8 +586,7 @@
     // Fast konfigurasjon
     window.CONFIG = {
       teacherName: "Ben Arild",
-      teacherPhone: "987 65 432", // Bytt til Ben Arilds ekte nummer hvis ønskelig
-      adminPassword: "levanger!",
+      teacherPhone: "987 65 432",
       prices: {
         filamentPerGram: 0.40,
         plotterPerCm: 0.25,
@@ -676,12 +673,22 @@
     window.makerCart = { gram: 0, cm: 0, vinylCm: 0, kopp: 0, buttons: 0 };
     window.bookingsDb = [];
 
+    // Hjelpefunksjon for å hente Auth trygt
+    function getAuth() {
+      if (window.firebase && firebase.apps && firebase.apps.length > 0) {
+        return firebase.auth();
+      }
+      return null;
+    }
+
     // Koble til Google Firebase
     window.initFirebaseOrLocal = function() {
       const badge = document.getElementById('dbStatusBadge');
       try {
         if (window.firebase && window.FIREBASE_CONFIG.apiKey && !window.FIREBASE_CONFIG.apiKey.startsWith("VALGFRITT")) {
-          window.firebase.initializeApp(window.FIREBASE_CONFIG);
+          if (!firebase.apps.length) {
+            window.firebase.initializeApp(window.FIREBASE_CONFIG);
+          }
           window.firestoreDb = window.firebase.firestore();
           window.isCloudConnected = true;
 
@@ -689,7 +696,17 @@
             badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span class="text-emerald-300 font-semibold">Tilkoblet Google Sky</span>`;
           }
 
-          // Lytt på sanntidsendringer direkte fra Google
+          // Start Firebase Auth-lyttere og sjekk URL for magic link
+          const authInstance = getAuth();
+          if (authInstance) {
+            authInstance.onAuthStateChanged((user) => {
+              const isTeacher = !!(user && user.email && user.email.toLowerCase().endsWith('@trondelagfylke.no'));
+              window.toggleAdminMode(isTeacher);
+            });
+            checkEmailSignInLink();
+          }
+
+          // Lytt på sanntidsendringer direkte fra Google Firestore
           window.firestoreDb.collection("bookings").onSnapshot(snapshot => {
             window.bookingsDb = [];
             snapshot.forEach(doc => {
@@ -1095,15 +1112,19 @@
         window.updateBookingSummary();
       }
     };
-// --- FIREBASE AUTH LÆRERINNLOGGING (MAGIC LINK) ---
-    const auth = firebase.auth();
 
+    // --- FIREBASE AUTH LÆRERINNLOGGING (MAGIC LINK) ---
     window.openAdminModal = function() {
       if (window.isAdmin) {
-        auth.signOut().then(() => {
+        const authInstance = getAuth();
+        if (authInstance) {
+          authInstance.signOut().then(() => {
+            window.toggleAdminMode(false);
+            window.showToast("Logget ut av lærermodus");
+          });
+        } else {
           window.toggleAdminMode(false);
-          window.showToast("Logget ut av lærermodus");
-        });
+        }
       } else {
         const input = document.getElementById('teacherEmailInput');
         const statusMsg = document.getElementById('loginStatusMsg');
@@ -1138,6 +1159,12 @@
         return;
       }
 
+      const authInstance = getAuth();
+      if (!authInstance) {
+        window.showToast("Klarte ikke koble til Firebase Auth.");
+        return;
+      }
+
       if (btn) {
         btn.disabled = true;
         btn.innerText = 'Sender lenke...';
@@ -1154,7 +1181,7 @@
       };
 
       try {
-        await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+        await authInstance.sendSignInLinkToEmail(email, actionCodeSettings);
         window.localStorage.setItem('emailForSignIn', email);
 
         if (statusMsg) {
@@ -1178,7 +1205,10 @@
 
     // 2. Fullfør innlogging hvis siden åpnes fra lenken i e-posten
     async function checkEmailSignInLink() {
-      if (auth.isSignInWithEmailLink(window.location.href)) {
+      const authInstance = getAuth();
+      if (!authInstance) return;
+
+      if (authInstance.isSignInWithEmailLink(window.location.href)) {
         let email = window.localStorage.getItem('emailForSignIn');
 
         if (!email) {
@@ -1187,7 +1217,7 @@
 
         if (email && email.toLowerCase().endsWith('@trondelagfylke.no')) {
           try {
-            await auth.signInWithEmailLink(email, window.location.href);
+            await authInstance.signInWithEmailLink(email, window.location.href);
             window.localStorage.removeItem('emailForSignIn');
             window.history.replaceState({}, document.title, window.location.pathname);
             window.showToast("Velkommen! Logget inn som lærer.");
@@ -1201,13 +1231,7 @@
       }
     }
 
-    // 3. Lytt på innloggingsstatus og synkroniser UI automatisk
-    auth.onAuthStateChanged((user) => {
-      const isTeacher = !!(user && user.email && user.email.toLowerCase().endsWith('@trondelagfylke.no'));
-      window.toggleAdminMode(isTeacher);
-    });
-
-    // 4. Opprinnelig toggleAdminMode (bevart)
+    // 3. Opprinnelig toggleAdminMode (bevart og tilpasset)
     window.toggleAdminMode = function(state) {
       window.isAdmin = state;
       const banner = document.getElementById('adminBanner');
@@ -1237,9 +1261,6 @@
       } catch(e) {}
     };
 
-    // Kjør sjekk automatisk ved lasting
-    checkEmailSignInLink();
-    
     window.populateAdminPriceInputs = function() {
       const p = window.CONFIG.prices;
       const input3d = document.getElementById('adminPrice3d');
