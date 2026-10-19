@@ -145,6 +145,14 @@
     <div class="mb-6">
       <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">1. Velg rom:</h3>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button type="button" onclick="window.selectRoom('foto')" id="btn-room-foto" class="room-btn p-4 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-indigo-500 transition cursor-pointer">
+          <i data-lucide="camera" class="w-6 h-6 text-indigo-400 mb-2"></i>
+          <div class="font-bold text-sm text-white">Fotostudio</div>
+        </button>
+        <button type="button" onclick="window.selectRoom('film')" id="btn-room-film" class="room-btn p-4 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-indigo-500 transition cursor-pointer">
+          <i data-lucide="video" class="w-6 h-6 text-indigo-400 mb-2"></i>
+          <div class="font-bold text-sm text-white">Filmstudio</div>
+        </button>
         <button type="button" onclick="window.selectRoom('podcast1')" id="btn-room-podcast1" class="room-btn p-4 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-indigo-500 transition cursor-pointer">
           <i data-lucide="mic" class="w-6 h-6 text-indigo-400 mb-2"></i>
           <div class="font-bold text-sm text-white">Podcastrom 1</div>
@@ -152,14 +160,6 @@
         <button type="button" onclick="window.selectRoom('podcast2')" id="btn-room-podcast2" class="room-btn p-4 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-indigo-500 transition cursor-pointer">
           <i data-lucide="mic-2" class="w-6 h-6 text-indigo-400 mb-2"></i>
           <div class="font-bold text-sm text-white">Podcastrom 2</div>
-        </button>
-        <button type="button" onclick="window.selectRoom('film')" id="btn-room-film" class="room-btn p-4 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-indigo-500 transition cursor-pointer">
-          <i data-lucide="video" class="w-6 h-6 text-indigo-400 mb-2"></i>
-          <div class="font-bold text-sm text-white">Filmstudio</div>
-        </button>
-        <button type="button" onclick="window.selectRoom('foto')" id="btn-room-foto" class="room-btn p-4 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-indigo-500 transition cursor-pointer">
-          <i data-lucide="camera" class="w-6 h-6 text-indigo-400 mb-2"></i>
-          <div class="font-bold text-sm text-white">Fotostudio</div>
         </button>
       </div>
     </div>
@@ -220,8 +220,8 @@
         <div id="bookingSummaryText" class="text-xs text-slate-300">
           Velg minst én time for å bekrefte.
         </div>
-        <button type="button" onclick="window.confirmBooking()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95">
-          <i data-lucide="check" class="w-4 h-4"></i> Bekreft booking
+        <button type="button" id="btnConfirmBooking" onclick="window.confirmBooking()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95">
+          <i data-lucide="check" class="w-4 h-4" id="confirmIcon"></i> <span id="confirmText">Bekreft booking</span>
         </button>
       </div>
     </div>
@@ -265,7 +265,7 @@
     </div>
 
     <!-- LÆRER / ADMIN PRISREDIGERINGSPANEL -->
-    <div id="adminPriceCard" class="hidden mb-6 p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-100 shadow-xl transition-all duration-300">
+    <div id="adminPriceCard" class="hidden mb-6 p-5 rounded-2xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-100 shadow-xl transition-all duration-350">
       <div class="flex items-center justify-between mb-3 border-b border-amber-500/30 pb-2">
         <div class="flex items-center gap-2">
           <i data-lucide="sliders" class="w-5 h-5 text-amber-400"></i>
@@ -644,10 +644,10 @@
     ];
 
     window.ROOM_NAMES = {
-      podcast1: "Podcastrom 1",
-      podcast2: "Podcastrom 2",
+      foto: "Fotostudio",
       film: "Filmstudio",
-      foto: "Fotostudio"
+      podcast1: "Podcastrom 1",
+      podcast2: "Podcastrom 2"
     };
 
     function formatDateYMD(d) {
@@ -678,7 +678,7 @@
 
     // State
     window.currentView = 'home';
-    window.currentRoom = 'podcast1';
+    window.currentRoom = 'foto'; // Sat foto som default siden det er først i ny rekkefølge
     window.selectedDate = getTodayYMD();
     window.currentWeekOffset = 0;
     window.currentTimeCategory = 'school';
@@ -755,7 +755,7 @@
           window.bookingsDb = JSON.parse(stored);
         } else {
           window.bookingsDb = [
-            { id: 'b_demo', date: getTodayYMD(), roomId: 'podcast1', slotId: 's3', name: 'Elev Demo', studentClass: '1IMA', purpose: 'Lydopptak' }
+            { id: 'b_demo', date: getTodayYMD(), roomId: 'foto', slotId: 's3', name: 'Elev Demo', studentClass: '1IMA', purpose: 'Fotografering' }
           ];
         }
       } catch (e) {
@@ -1016,6 +1016,10 @@
         return;
       }
 
+      const btnConfirm = document.getElementById('btnConfirmBooking');
+      const confirmIcon = document.getElementById('confirmIcon');
+      const confirmText = document.getElementById('confirmText');
+
       const slotArray = Array.from(window.selectedSlots);
 
       if (window.isCloudConnected && window.firestoreDb) {
@@ -1058,12 +1062,32 @@
         window.renderDayBookings();
       }
 
+      // Gjør knappen grønn og vis bekreftelse
+      if (btnConfirm && confirmIcon && confirmText) {
+        btnConfirm.classList.remove('bg-indigo-600', 'hover:bg-indigo-500', 'shadow-indigo-600/30');
+        btnConfirm.classList.add('bg-emerald-600', 'hover:bg-emerald-500', 'shadow-emerald-600/30');
+        confirmIcon.setAttribute('data-lucide', 'check-circle');
+        confirmText.textContent = "Booking registrert! ✓";
+        if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+      }
+
       window.showToast("Booking bekreftet og registrert!");
       window.selectedSlots.clear();
       const pInput = document.getElementById('bookingPurpose');
       if (pInput) pInput.value = '';
 
       window.updateBookingSummary();
+
+      // Nullstill bekreftelsesknappen etter 3 sekunder
+      setTimeout(() => {
+        if (btnConfirm && confirmIcon && confirmText) {
+          btnConfirm.classList.add('bg-indigo-600', 'hover:bg-indigo-500', 'shadow-indigo-600/30');
+          btnConfirm.classList.remove('bg-emerald-600', 'hover:bg-emerald-500', 'shadow-emerald-600/30');
+          confirmIcon.setAttribute('data-lucide', 'check');
+          confirmText.textContent = "Bekreft booking";
+          if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+        }
+      }, 3000);
     };
 
     window.renderDayBookings = function() {
@@ -1608,7 +1632,7 @@
     function initApp() {
       window.initFirebaseOrLocal();
       window.updatePriceLabels();
-      window.selectRoom('podcast1');
+      window.selectRoom('foto'); // Foto valgt automatisk ved oppstart (første studio)
       window.initWeekUI();
       window.updateMakerspaceCalc();
       window.showView('home');
