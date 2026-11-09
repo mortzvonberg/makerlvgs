@@ -1,7 +1,7 @@
 const $ = s => document.querySelector(s), NS = 'http://www.w3.org/2000/svg';
 const colors = { M: '#ff666b', T: '#619dff', L: '#27d69b', P: '#f279d6' };
 const buildingName = (b, f = currentFloor) => ({ M: 'M-bygget', T: 'T-bygget', L: 'L-bygget', P: 'Miljøbygget' })[b];
-const floorImages = { 1: 'plan.jpg', 2: 'plan2.jpg' }, overview = [-120, -130, 10240, 4560];
+const floorImages = { 1: 'plan.png', 2: 'plan2.png' }, overview = [-120, -130, 10240, 4560];
 const buildingViews = { M: [-100, 650, 3000, 3600], T: [2850, 950, 4050, 2100], L: [6750, -100, 3300, 3100], P: [2670, 2400, 1000, 1900] };
 let currentFloor = 1, filter = 'all', selected = null, view = [...overview], drag = null, placing = false, pendingPoint = null;
 

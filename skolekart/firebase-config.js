@@ -1,5 +1,3 @@
-// Erstatt verdiene under med dine egne prosjektdetaljer fra Firebase Console:
-// Prosjektinnstillinger -> Generelt -> «Dine apper» -> Webapp (</>)
 const firebaseConfig = {
   apiKey: "AIzaSyCXtcC4fUfI3QRV8CzgCC6LaFYlh5zBLRY",
   authDomain: "makerlvgs.firebaseapp.com",
@@ -10,11 +8,11 @@ const firebaseConfig = {
   measurementId: "G-DFMWQ9TV2G"
 };
 
-// Initialiser Firebase dersom konfigurasjonen er fylt ut
-if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== 'AIzaSyCXtcC4fUfI3QRV8CzgCC6LaFYlh5zBLRY') {
+// Initialiser Firebase
+if (typeof firebase !== 'undefined') {
   firebase.initializeApp(firebaseConfig);
   window.db = firebase.firestore();
 } else {
-  console.info('Firebase er ikke konfigurert ennå. Kartet kjører midlertidig med lokal lagring.');
+  console.info('Firebase SDK ble ikke lastet.');
   window.db = null;
 }
