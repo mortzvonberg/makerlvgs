@@ -1,1 +1,119 @@
-<!doctype html><html lang="nb"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skolekart · Finn rommet</title><link rel="stylesheet" href="style.css"></head><body><header><a class="brand" href="./"><span class="logo">⌘</span> Skolekart</a><div class="floor-switch" role="group" aria-label="Velg etasje"><button data-floor="1" class="active" aria-pressed="true">1. etasje</button><button data-floor="2" aria-pressed="false">2. etasje</button></div><span class="quiet desktop">Fire byggdeler. Ett kart.</span></header><main><aside><div class="eyebrow">FINN FREM PÅ SKOLEN</div><h1>Hvor skal du?</h1><p class="intro">Søk etter et rom, eller velg det direkte i kartet.</p><label for="search">Romnummer eller romnavn</label><div class="searchbox"><span>⌕</span><input id="search" placeholder="Prøv M105 eller klasserom" autocomplete="off"><button id="clear" aria-label="Tøm søk">×</button></div><div class="filters" aria-label="Filtrer bygg"><button data-building="all" class="active">Alle bygg</button><button data-building="M" class="m">M</button><button data-building="T" class="h">T</button><button data-building="L" class="l">L</button><button data-building="P" class="p">Miljøbygget</button></div><div id="details" aria-live="polite"></div><div class="listhead" hidden><h2 id="listtitle">Rom i 1. etasje</h2><span id="count"></span></div><div id="results" hidden></div><p id="transferstatus" role="status"></p><footer><span id="sourcecaption">Basert på «Full skole 1 etg»</span><br><span>Romnavn og nummer er lest fra plantegningen. Kontroller utydelige etiketter mot originalen.</span></footer></aside><section class="maparea"><div class="mapheading"><div><span class="eyebrow">OVERSIKTSKART</span><h2 id="maptitle">Hele skolen</h2></div><div class="legend"><span class="m">● M-bygget</span><span class="h">● T-bygget</span><span class="l">● L-bygget</span><span class="p" id="pinklegend">● Miljøbygget</span></div></div><div id="viewport" tabindex="0" aria-label="Interaktivt skolekart. Bruk zoomknappene, dra kartet, eller velg rom i listen."><svg id="map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9900 4100"><image id="planimage" href="plan.png" width="10000" height="4300"/><g font-family="Segoe UI,Arial" font-size="60" font-weight="700"><text x="400" y="700" fill="#ff666b">M-bygget</text><text x="4400" y="1100" fill="#619dff">T-bygget</text><text x="8250" y="310" fill="#27d69b">L-bygget</text><text id="pinklabel" x="3350" y="4020" fill="#f279d6">Miljøbygget</text></g><g id="markers"></g></svg><div class="maphint">Dra for å flytte · Rull for å zoome · Trykk på et rom</div><div id="placementbar" hidden><span>Trykk midt i rommet du vil legge til. Du kan zoome og dra først.</span><button id="cancelplace">Avbryt</button></div><div class="controls"><button id="plus" aria-label="Zoom inn">+</button><button id="minus" aria-label="Zoom ut">−</button><button id="reset" aria-label="Vis hele skolen">⌂</button></div><div class="zoomlevel" id="zoomlevel">100 %</div></div><div class="mapbottom"><span id="floorcaption"><i></i> Fugleperspektiv · 1. etasje</span><span id="selectionhint">Velg et rom for å se plasseringen</span></div></section></main><dialog id="newroomdialog"><form id="newroomform"><span class="eyebrow" id="newfloor"></span><h2>Legg til rom</h2><label for="newroomname">Romnavn</label><input id="newroomname" required maxlength="80" placeholder="F.eks. Miljøkontor eller Samtalerom"><label for="newbuilding">Byggdel</label><select id="newbuilding"><option value="M">M-bygget</option><option value="T">T-bygget</option><option value="L">L-bygget</option><option value="P">Miljøbygget</option></select><p>Rommet lagres på stedet du trykket i kartet.</p><p id="newerror" role="alert"></p><div class="editactions"><button type="submit" class="save">Legg til rom</button><button type="button" id="cancelnew">Avbryt</button></div></form></dialog><script src="rooms.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skolekart · Finn rommet</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase App & Firestore (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="./"><span class="logo">⌘</span> Skolekart</a>
+    <div class="floor-switch" role="group" aria-label="Velg etasje">
+      <button data-floor="1" class="active" aria-pressed="true">1. etasje</button>
+      <button data-floor="2" aria-pressed="false">2. etasje</button>
+    </div>
+    <span class="quiet desktop">Fire byggdeler. Ett kart.</span>
+  </header>
+  <main>
+    <aside>
+      <div class="eyebrow">FINN FREM PÅ SKOLEN</div>
+      <h1>Hvor skal du?</h1>
+      <p class="intro">Søk etter et rom, eller velg det direkte i kartet.</p>
+      <label for="search">Romnummer eller romnavn</label>
+      <div class="searchbox">
+        <span>⌕</span>
+        <input id="search" placeholder="Prøv M105 eller klasserom" autocomplete="off">
+        <button id="clear" aria-label="Tøm søk">×</button>
+      </div>
+      <div class="filters" aria-label="Filtrer bygg">
+        <button data-building="all" class="active">Alle bygg</button>
+        <button data-building="M" class="m">M</button>
+        <button data-building="T" class="h">T</button>
+        <button data-building="L" class="l">L</button>
+        <button data-building="P" class="p">Miljøbygget</button>
+      </div>
+      <div id="details" aria-live="polite"></div>
+      <div class="listhead" hidden>
+        <h2 id="listtitle">Rom i 1. etasje</h2>
+        <span id="count"></span>
+      </div>
+      <div id="results" hidden></div>
+      <p id="transferstatus" role="status"></p>
+      <footer>
+        <span id="sourcecaption">Basert på «Full skole 1 etg»</span><br>
+        <span>Romnavn og nummer er lest fra plantegningen. Kontroller utydelige etiketter mot originalen.</span>
+      </footer>
+    </aside>
+    <section class="maparea">
+      <div class="mapheading">
+        <div>
+          <span class="eyebrow">OVERSIKTSKART</span>
+          <h2 id="maptitle">Hele skolen</h2>
+        </div>
+        <div class="legend">
+          <span class="m">● M-bygget</span>
+          <span class="h">● T-bygget</span>
+          <span class="l">● L-bygget</span>
+          <span class="p" id="pinklegend">● Miljøbygget</span>
+        </div>
+      </div>
+      <div id="viewport" tabindex="0" aria-label="Interaktivt skolekart. Bruk zoomknappene, dra kartet, eller velg rom i listen.">
+        <svg id="map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9900 4100">
+          <image id="planimage" href="plan.jpg" width="10000" height="4300"/>
+          <g font-family="Segoe UI,Arial" font-size="60" font-weight="700">
+            <text x="400" y="700" fill="#ff666b">M-bygget</text>
+            <text x="4400" y="1100" fill="#619dff">T-bygget</text>
+            <text x="8250" y="310" fill="#27d69b">L-bygget</text>
+            <text id="pinklabel" x="3350" y="4020" fill="#f279d6">Miljøbygget</text>
+          </g>
+          <g id="markers"></g>
+        </svg>
+        <div class="maphint">Dra for å flytte · Rull for å zoome · Trykk på et rom</div>
+        <div id="placementbar" hidden>
+          <span>Trykk midt i rommet du vil legge til. Du kan zoome og dra først.</span>
+          <button id="cancelplace">Avbryt</button>
+        </div>
+        <div class="controls">
+          <button id="plus" aria-label="Zoom inn">+</button>
+          <button id="minus" aria-label="Zoom ut">−</button>
+          <button id="reset" aria-label="Vis hele skolen">⌂</button>
+        </div>
+        <div class="zoomlevel" id="zoomlevel">100 %</div>
+      </div>
+      <div class="mapbottom">
+        <span id="floorcaption"><i></i> Fugleperspektiv · 1. etasje</span>
+        <span id="selectionhint">Velg et rom for å se plasseringen</span>
+      </div>
+    </section>
+  </main>
+  <dialog id="newroomdialog">
+    <form id="newroomform">
+      <span class="eyebrow" id="newfloor"></span>
+      <h2>Legg til rom</h2>
+      <label for="newroomname">Romnavn</label>
+      <input id="newroomname" required maxlength="80" placeholder="F.eks. Miljøkontor eller Samtalerom">
+      <label for="newbuilding">Byggdel</label>
+      <select id="newbuilding">
+        <option value="M">M-bygget</option>
+        <option value="T">T-bygget</option>
+        <option value="L">L-bygget</option>
+        <option value="P">Miljøbygget</option>
+      </select>
+      <p>Rommet lagres på stedet du trykket i kartet.</p>
+      <p id="newerror" role="alert"></p>
+      <div class="editactions">
+        <button type="submit" class="save">Legg til rom</button>
+        <button type="button" id="cancelnew">Avbryt</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="rooms.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
